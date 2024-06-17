@@ -5,8 +5,10 @@ import UIKit
 final class JuiceMachineViewController: UIViewController {
     
     @IBOutlet var juiceMachineView: JuiceMachineView!
-    private let reception = Reception()
-    
+    var juiceMaker: JuiceMaker!
+    var alertDelegate: PresentationDelegate!
+    weak var coordinator: MainCoordinator!
+
     deinit { NotificationCenter.default.removeObserver(self) }
 }
 
@@ -15,8 +17,8 @@ extension JuiceMachineViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        setupUI()
         setupNotificationCenter()
+        setupUI()
     }
 }
 
@@ -25,7 +27,7 @@ private extension JuiceMachineViewController {
     
     func setupUI() {
         setupButtonAction()
-        setupInitialStockLabel()
+        juiceMaker.updateStock()
     }
     
     func setupButtonAction() {
@@ -36,43 +38,51 @@ private extension JuiceMachineViewController {
         juiceMachineView.pineappleOrderButton.addTarget(self, action: #selector(pineappleJuiceOrderButtonTapped), for: .touchUpInside)
         juiceMachineView.ddalbaOrderButton.addTarget(self, action: #selector(ddalbaJuiceOrderButtonTapped), for: .touchUpInside)
         juiceMachineView.mangkiOrderButton.addTarget(self, action: #selector(mangkiJuiceButtonTapped), for: .touchUpInside)
+        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "재고 수정", style: .plain, target: self, action: #selector(rightBarButtonTapped))
     }
     
-    func setupInitialStockLabel() {
-        var initialFruitStock = reception.fetchInitialFruitsStock()
-        updateStockLabel(from: initialFruitStock)
-    }
 }
 
 // MARK: - Button Action Method
 private extension JuiceMachineViewController {
-
+    
     @objc func ddalbaJuiceOrderButtonTapped() {
-        reception.acceptJuiceOrder(of: .ddalba)
+        juiceMaker.makeDdalbaJuice()
+        alertDelegate.presentAelrt(with: .successJuiceOrder, title: "제조 성공", message: "딸바주스 맛있게 드세요")
     }
     
     @objc func mangkiJuiceButtonTapped() {
-        reception.acceptJuiceOrder(of: .mangki)
+        juiceMaker.makeMangkiJuice()
+        alertDelegate.presentAelrt(with: .successJuiceOrder, title: "제조 성공", message: "망키주스 맛있게 드세요")
     }
     
     @objc func strawberryJuiceOrderButtonTapped() {
-        reception.acceptJuiceOrder(of: .strawberry)
+        juiceMaker.makeStrawberryJuice()
+        alertDelegate.presentAelrt(with: .successJuiceOrder, title: "제조 성공", message: "딸기주스 맛있게 드세요")
     }
     
     @objc func bananaJuiceOrderButtonTapped() {
-        reception.acceptJuiceOrder(of: .banana)
+        juiceMaker.makeBananaJuice()
+        alertDelegate.presentAelrt(with: .successJuiceOrder, title: "제조 성공", message: "바나나주스 맛있게 드세요")
     }
-
+    
     @objc func pineappleJuiceOrderButtonTapped() {
-        reception.acceptJuiceOrder(of: .pineapple)
+        juiceMaker.makePineappleJuice()
+        alertDelegate.presentAelrt(with: .successJuiceOrder, title: "제조 성공", message: "파인애플주스 맛있게 드세요")
     }
     
     @objc func kiwiJuiceOrderButtonTapped() {
-        reception.acceptJuiceOrder(of: .kiwi)
+        juiceMaker.makeKiwiJuice()
+        alertDelegate.presentAelrt(with: .successJuiceOrder, title: "제조 성공", message: "키위주스 맛있게 드세요")
     }
     
     @objc func mangoJuiceButtonTapped() {
-        reception.acceptJuiceOrder(of: .mango)
+        juiceMaker.makeMangoJuice()
+        alertDelegate.presentAelrt(with: .successJuiceOrder, title: "제조 성공", message: "망고주스 맛있게 드세요")
+    }
+    
+    @objc func rightBarButtonTapped() {
+        coordinator?.showStockManagement()
     }
 }
 
@@ -81,22 +91,29 @@ private extension JuiceMachineViewController {
     
     func setupNotificationCenter() {
         NotificationCenter.default.addObserver(self, selector: #selector(updateFruitStock), name: .fruitStockDidChange, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(handleError), name: .errorOccured, object: nil)
     }
     
     @objc func updateFruitStock(notification: Notification) {
-        guard let fruitStock = 
-            notification.userInfo?["fruitsStock"] as? [FruitStore.Fruits: Int] else {
-            ErrorType.notificationCenterError("\(#function)에서 문제가 생겼습니다!").printMessage()
+        guard let fruitStock =
+                notification.userInfo?["fruitsStock"] as? [FruitsType: Int] else {
             return
         }
         updateStockLabel(from: fruitStock)
     }
     
-    func updateStockLabel(from fruitStock: [FruitStore.Fruits: Int]) {
+    func updateStockLabel(from fruitStock: [FruitsType: Int]) {
         juiceMachineView.bananaStockLabel.text = String(fruitStock[.banana] ?? 0)
         juiceMachineView.strawberryStockLabel.text = String(fruitStock[.strawberry] ?? 0)
         juiceMachineView.mangoStockLabel.text = String(fruitStock[.mango] ?? 0)
         juiceMachineView.pineappleStockLabel.text = String(fruitStock[.pineapple] ?? 0)
         juiceMachineView.kiwiStockLabel.text = String(fruitStock[.kiwi] ?? 0)
+    }
+    
+    @objc func handleError() {
+        alertDelegate.presentAlert(
+            with: .fruitShortage, title: "재고부족!", message: "재고를 추가하시겠습니까?") { [weak self] _ in
+                self?.coordinator?.showStockManagement()
+            }
     }
 }
